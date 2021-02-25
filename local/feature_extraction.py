@@ -59,14 +59,14 @@ def main():
     if not wav_dir.exists():
         wav_dir.mkdir(parents=True)
         for x in ["train/synthetic20", "train/weak", "train/unlabel_in_domain", "validation", "eval", "public"]:
-            src_dir = Path("./dcase20_task4/dataset/audio") / x
+            src_dir = Path(cfg["audio_root"]) / x
             dest_dir = wav_dir / x
             dest_dir.mkdir(parents=True)
             Parallel(n_jobs=args.nj)(
                 delayed(resample_wav)(cfg, filename, (dest_dir / filename.name)) for filename in src_dir.glob("*.wav")
             )
     else:
-        logging.info(f"{wav_dir} is already exists, skip resampling.")
+        logging.info(f"{wav_dir} is already exists, resampling is skipped.")
 
     feat_dir = Path(
         f"./data/feat/sr{cfg['sample_rate']}"
@@ -83,7 +83,7 @@ def main():
                 for filename in src_dir.glob("*.wav")
             )
     else:
-        logging.info(f"{feat_dir} is already exists, skip feature extraction.")
+        logging.info(f"{feat_dir} is already exists, feature extraction is skipped.")
 
 
 if __name__ == "__main__":

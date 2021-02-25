@@ -1,3 +1,6 @@
+# dataset
+audio_root: ./dcase20_task4/dataset/audio
+
 sample_rate: 16000
 gain: -3
 highpass: 10
