@@ -1,0 +1,20 @@
+# CNN setting
+cnn:
+  activation: "Relu"
+  conv_dropout: 0.1
+  kernel_size: [3, 3, 3, 3, 3, 3, 3]
+  padding: [1, 1, 1, 1, 1, 1, 1]
+  stride: [1, 1, 1, 1, 1, 1, 1]
+  nb_filters: [16, 32, 64, 128, 128, 128, 128]
+  pooling: [[2, 2], [2, 2], [2, 2], [1, 2], [1, 2], [1, 2], [1, 1]]
+
+
+# Transformer/Conformer setting
+encoder_type: Conformer
+encoder:
+  adim: 144
+  aheads: 4
+  dropout_rate: 0.1
+  elayers: 3
+  eunits: 576
+  kernel_size: 7

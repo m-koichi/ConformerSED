@@ -1,0 +1,84 @@
+# experiment
+wandb_project: dcase20t4
+exp_name: conformer_sed
+
+# dataset
+synth_meta: ./data/metadata/train/synthetic20.tsv
+weak_meta: ./data/metadata/train/weak.tsv
+unlabel_meta: ./data/metadata/train/unlabel_in_domain.tsv
+valid_meta: ./data/metadata/validation/validation.tsv
+
+valid_audio_dir: ./dcase20_task4/dataset/audio/validation
+
+# feature extraction setting that used for computing frame time resolution
+max_len_seconds: 10
+sample_rate: 16000
+hop_size: 323
+n_mels: 64
+n_fft: 1024
+hop_size: 323
+pooling_time_ratio: 8
+
+# data augmentation
+norm_mode: gcmvn
+apply_prob: 0.5
+data_aug:
+  semi_supervised_training: True
+  time_shift:
+    apply: True
+    params:
+      mean: 0
+      std: 90
+  frequency_shift:
+    apply: False
+    params:
+      mean: 0
+      std: 3
+  frequency_mask:
+    apply: False
+    params:
+      num_masks: 1
+      mask_param: 100
+  add_noise:
+    apply: False
+    params:
+      mean: 0.0
+      std: 0.01
+      snr: 30
+
+
+# training
+seed: 1
+ngpu: 1
+batch_size: 32
+num_workers: 4
+optimizer: "RAdam"
+optimizer_params:
+  lr: 0.001
+  betas: [0.9, 0.98]
+  eps: 0.000000001
+  weight_decay: 0.000001
+
+scheduler: "StepLR"
+scheduler_params:
+  step_size: 10000
+  gamma: 0.1
+  
+
+early_stop_criterion: acc
+patience: 3
+
+
+
+
+trainer_options:
+  accum_grad: 1
+  grad_clip: 5.0
+  log_interval: 250
+  train_steps: 20000
+  rampup_length: 10000
+  consistency_cost: 2.0
+  use_mixup: True
+  binarization_type: "global_threshold"
+  threshold: 0.5
+
