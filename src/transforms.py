@@ -337,21 +337,21 @@ class Compose(object):
         return format_string
 
 
-def get_transforms(args, noise_dict_params=None, norm_dict_params=None, training=True, prob=1.0):
+def get_transforms(cfg, nb_frames, norm_dict_params=None, training=True, prob=1.0):
 
     transf = []
-    if args.ssl and training:
+    if cfg["semi_supervised_training"] and training:
         transf.append(DataTwice())
-    if args.timeshift and training:
-        transf.append(RandomApply([TimeShift()], p=prob))
-    if args.freqshift and training:
-        transf.append(RandomApply([FrequencyShift()], p=prob))
-    if noise_dict_params is not None and training:
-        transf.append(RandomApply([AugmentGaussianNoise(mean=0.0, **noise_dict_params)], p=prob))
+    if cfg["time_shift"]["apply"] and training:
+        transf.append(RandomApply([TimeShift(**cfg["time_shift"]["params"])], p=prob))
+    if cfg["frequency_shift"]["apply"] and training:
+        transf.append(RandomApply([FrequencyShift(**cfg["frequency_shift"]["params"])], p=prob))
+    if cfg["add_noise"]["apply"] is not None and training:
+        transf.append(RandomApply([AugmentGaussianNoise(**cfg["add_noise"]["params"])], p=prob))
     transf.append(ApplyLog())
     transf.append(Normalize(**norm_dict_params))
-    if args.freqmask and training:
-        transf.append(RandomApply([FrequencyMask()], p=prob))
-    transf.append(PadOrTrunc(nb_frames=args.n_frames, apply_to_label=True))
+    if cfg["frequency_mask"]["apply"] and training:
+        transf.append(RandomApply([FrequencyMask(**cfg["frequency_mask"]["params"])], p=prob))
+    transf.append(PadOrTrunc(nb_frames=nb_frames, apply_to_label=True))
 
     return Compose(transf)
