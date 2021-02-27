@@ -1,23 +1,21 @@
 from __future__ import print_function
 
 import glob
+import os
+import os.path as osp
 import warnings
 
+import librosa
 import numpy as np
 import pandas as pd
 import soundfile
-import os
-import os.path as osp
-import librosa
 import torch
 from desed.utils import create_folder
 from torch import nn
 
-import config as cfg
-
 
 def read_audio(path, target_fs=None):
-    """ Read a wav file
+    """Read a wav file
     Args:
         path: str, path of the audio file
         target_fs: int, (Default value = None) sampling rate of the returned audio file, if not specified, the sampling
@@ -38,29 +36,29 @@ def read_audio(path, target_fs=None):
 
 
 def weights_init(m):
-    """ Initialize the weights of some layers of neural networks, here Conv2D, BatchNorm, GRU, Linear
+    """Initialize the weights of some layers of neural networks, here Conv2D, BatchNorm, GRU, Linear
         Based on the work of Xavier Glorot
     Args:
         m: the model to initialize
     """
     classname = m.__class__.__name__
-    if classname.find('Conv2d') != -1:
+    if classname.find("Conv2d") != -1:
         nn.init.xavier_uniform_(m.weight, gain=np.sqrt(2))
         m.bias.data.fill_(0)
-    elif classname.find('BatchNorm') != -1:
+    elif classname.find("BatchNorm") != -1:
         m.weight.data.normal_(1.0, 0.02)
         m.bias.data.fill_(0)
-    elif classname.find('GRU') != -1:
+    elif classname.find("GRU") != -1:
         for weight in m.parameters():
             if len(weight.size()) > 1:
                 nn.init.orthogonal_(weight.data)
-    elif classname.find('Linear') != -1:
+    elif classname.find("Linear") != -1:
         m.weight.data.normal_(0, 0.01)
         m.bias.data.zero_()
 
 
 def to_cuda_if_available(*args):
-    """ Transfer object (Module, Tensor) to GPU if GPU available
+    """Transfer object (Module, Tensor) to GPU if GPU available
     Args:
         args: torch object to put on cuda if available (needs to have object.cuda() defined)
 
@@ -77,7 +75,7 @@ def to_cuda_if_available(*args):
 
 
 class SaveBest:
-    """ Callback to get the best value and epoch
+    """Callback to get the best value and epoch
     Args:
         val_comp: str, (Default value = "inf") "inf" or "sup", inf when we store the lowest model, sup when we
             store the highest model
@@ -88,6 +86,7 @@ class SaveBest:
         best_epoch: int, the epoch when the model was the best
         current_epoch: int, the current epoch of the model
     """
+
     def __init__(self, val_comp="inf"):
         self.comp = val_comp
         if val_comp in ["inf", "lt", "desc"]:
@@ -100,7 +99,7 @@ class SaveBest:
         self.current_epoch = 0
 
     def apply(self, value):
-        """ Apply the callback
+        """Apply the callback
         Args:
             value: float, the value of the metric followed
         """
@@ -116,7 +115,7 @@ class SaveBest:
 
 
 class EarlyStopping:
-    """ Callback to stop training if the metric have not improved during multiple epochs.
+    """Callback to stop training if the metric have not improved during multiple epochs.
     Args:
         patience: int, number of epochs with no improvement before stopping the model
         val_comp: str, (Default value = "inf") "inf" or "sup", inf when we store the lowest model, sup when we
@@ -129,6 +128,7 @@ class EarlyStopping:
         best_epoch: int, the epoch when the model was the best
         current_epoch: int, the current epoch of the model
     """
+
     def __init__(self, patience, val_comp="inf", init_patience=0):
         self.patience = patience
         self.first_early_wait = init_patience
@@ -143,7 +143,7 @@ class EarlyStopping:
         self.best_epoch = 0
 
     def apply(self, value):
-        """ Apply the callback
+        """Apply the callback
 
         Args:
             value: the value of the metric followed
@@ -181,16 +181,16 @@ class AverageMeterSet:
         for meter in self.meters.values():
             meter.reset()
 
-    def values(self, postfix=''):
+    def values(self, postfix=""):
         return {name + postfix: meter.val for name, meter in self.meters.items()}
 
-    def averages(self, postfix='/avg'):
+    def averages(self, postfix="/avg"):
         return {name + postfix: meter.avg for name, meter in self.meters.items()}
 
-    def sums(self, postfix='/sum'):
+    def sums(self, postfix="/sum"):
         return {name + postfix: meter.sum for name, meter in self.meters.items()}
 
-    def counts(self, postfix='/count'):
+    def counts(self, postfix="/count"):
         return {name + postfix: meter.count for name, meter in self.meters.items()}
 
     def __str__(self):
@@ -226,7 +226,7 @@ class AverageMeter:
 
 
 def generate_tsv_wav_durations(audio_dir, out_tsv):
-    """ Generate a dataframe with filename and duration of the file
+    """Generate a dataframe with filename and duration of the file
     Args:
         audio_dir: str, the path of the folder where audio files are (used by glob.glob)
         out_tsv: str, the path of the output tsv file
@@ -245,7 +245,7 @@ def generate_tsv_wav_durations(audio_dir, out_tsv):
 
 
 def generate_tsv_from_isolated_events(wav_folder, out_tsv=None):
-    """ Generate list of separated wav files in a folder and export them in a tsv file
+    """Generate list of separated wav files in a folder and export them in a tsv file
     Separated audio files considered are all wav files in 'subdirectories' of the 'wav_folder'
     Args:
         wav_folder: str, path of the folder containing subdirectories (one for each mixture separated)
@@ -272,8 +272,10 @@ def generate_tsv_from_isolated_events(wav_folder, out_tsv=None):
                         # Append the subfolders and name in the list of files
                         list_isolated_files.append(osp.join(dirname, subdirs, fname))
                     else:
-                        warnings.warn(f"Not only wav audio files in the separated source folder,"
-                                      f"{fname} not added to the .tsv file")
+                        warnings.warn(
+                            f"Not only wav audio files in the separated source folder,"
+                            f"{fname} not added to the .tsv file"
+                        )
             source_sep_df = source_sep_df.append(pd.DataFrame(list_isolated_files, columns=["filename"]))
         if out_tsv is not None:
             create_folder(os.path.dirname(out_tsv))
@@ -289,9 +291,7 @@ def audio_dir_to_meta_path(audio_dir):
     return audio_dir.replace("audio", "metadata") + ".tsv"
 
 
-def get_durations_df(gtruth_path, audio_dir=None):
-    if audio_dir is None:
-        audio_dir = meta_path_to_audio_dir(cfg.synthetic)
+def get_durations_df(gtruth_path, audio_dir):
     path, ext = os.path.splitext(gtruth_path)
     path_durations_synth = path + "_durations" + ext
     if not os.path.exists(path_durations_synth):

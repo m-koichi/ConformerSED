@@ -18,7 +18,7 @@ from tqdm import tqdm
 
 from baseline_utils import ramps
 from baseline_utils.ManyHotEncoder import ManyHotEncoder
-from baseline_utils.utils import AverageMeter, get_durations_df
+from baseline_utils.utils import AverageMeter, EarlyStopping, get_durations_df
 from evaluation_measures import ConfusionMatrix, compute_metrics
 from post_processing import PostProcess
 
@@ -42,6 +42,8 @@ class MeanTeacherTrainerOptions:
     consistency_cost: float = 2.0
     binarization_type: str = "global_threshold"
     threshold: float = 0.5
+    early_stopping: bool = True
+    patience: int = 10
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     def _set_validation_options(
@@ -81,7 +83,7 @@ class MeanTeacherTrainer(object):
         valid_loader,
         optimizer,
         scheduler,
-        exp_name="tensorboard/log",
+        exp_name,
         pretrained=None,
         resume=None,
         trainer_options=None,
@@ -104,7 +106,7 @@ class MeanTeacherTrainer(object):
         if resume is not None:
             self.resume(resume)
 
-        self.exp_name = str(exp_name)
+        self.exp_name = exp_name
 
         self.classification_criterion = trainer_options.classification_criterion
         self.consistency_criterion = trainer_options.consistency_criterion
@@ -126,11 +128,27 @@ class MeanTeacherTrainer(object):
         self.consistency_strong_losses = AverageMeter()
         self.consistency_weak_losses = AverageMeter()
 
+        if self.options.early_stopping:
+            self.early_stopping_call = EarlyStopping(trainer_options.patience, val_comp="sup")
+
     def run(self):
         for i in tqdm(range(self.forward_count + 1, self.options.train_steps + 1)):
             self.train_one_step()
             if i % self.options.log_interval == 0:
-                self.validation()
+                metrics = self.validation()
+                is_best_loss = metrics["valid_strong_loss"] + metrics["valid_weak_loss"] < self.best_val_loss
+                is_best_score = metrics["event_m_f1"] > self.best_score
+                if is_best_loss:
+                    self.best_val_loss = metrics["valid_strong_loss"] + metrics["valid_weak_loss"]
+                if is_best_score:
+                    self.best_score = metrics["event_m_f1"]
+                self.save_checkpoint((self.exp_name / "model" / f"{i}th_iterations.pth"), is_best_loss, is_best_score)
+                if self.options.early_stopping:
+                    if self.early_stopping_call.apply(metrics["event_m_f1"]):
+                        logging.warn("Early stopping")
+                        break
+        checkpoint = torch.load(self.exp_name / "model" / "model_best_score.pth")
+        self.model.load_state_dict(checkpoint["state_dict"])
         # search best post-processing parameters
         self.optimize_post_processing()
 
@@ -138,7 +156,8 @@ class MeanTeacherTrainer(object):
         # Use the true average until the exponential average is more correct
         alpha = min(1 - 1 / (self.forward_count + 1), alpha)
         for ema_param, param in zip(self.ema_model.parameters(), self.model.parameters()):
-            ema_param.data.mul_(alpha).add_(1 - alpha, param.data)
+            # ema_param.data.mul_(alpha).add_(1 - alpha, param.data)
+            ema_param.data.mul_(alpha).add_(param.data, alpha=(1 - alpha))
 
     def mixup(self, data, data_ema, target, alpha=0.2):
         """Mixup data augmentation
@@ -402,6 +421,8 @@ class MeanTeacherTrainer(object):
 
             wandb.log(metrics, step=self.forward_count)
 
+        return metrics
+
     @torch.no_grad()
     def optimize_post_processing(self):
         post_process = PostProcess(self.model, self.valid_loader, Path(self.exp_name), self.options)
@@ -437,7 +458,7 @@ class MeanTeacherTrainer(object):
 
     def resume(self, filename):
         print(f"=> loading checkpoint '{filename}'")
-        checkpoint = torch.load(filename)
+        checkpoint = torch.load(str(filename))
         self.forward_count = checkpoint["iteration"]
         self.model.load_state_dict(checkpoint["state_dict"], strict=False)
         self.ema_model.load_state_dict(checkpoint["state_dict_ema"], strict=False)
