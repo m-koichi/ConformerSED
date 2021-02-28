@@ -1,4 +1,4 @@
-name: dcase20t4__
+name: dcase20t4
 channels:
   - anaconda
   - conda-forge
@@ -17,7 +17,6 @@ dependencies:
     - dcase-util
     - desed@git+https://github.com/turpaultn/DESED
     - h5py
-    - kaldiio
     - librosa
     - pandas
     - psds-eval
