@@ -3,8 +3,9 @@
 # Copyright 2020 Nagoya University (Koichi Miyazaki)
 # MIT  (https://opensource.org/licenses/MIT)
 
-stage=3         # start from 0 if you need to start from data preparation
-stop_stage=3
+stage=1         # start from 0 if you need to start from data preparation
+stop_stage=4
+nj=24
 
 
 if [ ${stage} -le 1 ] && [ ${stop_stage} -ge 1 ]; then
@@ -27,12 +28,9 @@ if [ ${stage} -le 1 ] && [ ${stop_stage} -ge 1 ]; then
 fi
 
 
-# TODO set config
 if [ ${stage} -le 2 ] && [ ${stop_stage} -ge 2 ]; then
-    ### Task dependent. You have to design training and dev sets by yourself.
-    ### But you can utilize Kaldi recipes in most cases
     echo "stage 2: Feature Generation"
-    python local/feature_extraction.py --config ./config/feature_config.yaml --nj 24
+    python local/feature_extraction.py --config ./config/feature_config.yaml --nj ${nj}
 fi
 
 if [ ${stage} -le 3 ] && [ ${stop_stage} -ge 3 ]; then
@@ -48,8 +46,6 @@ fi
 if [ ${stage} -le 4 ] && [ ${stop_stage} -ge 4 ]; then
     echo "stage 4: Evaluate performance"
     echo "`date`: [Start] model evaluation"
-    python -u sed/test.py --run-name $run_name \
-                                      --averaged False \
-                                      | tee exp/${run_name}/pp_tuning.log
+    python -u src/test.py
     echo "`date`: [Done] model evaluation"
 fi
