@@ -366,7 +366,7 @@ class PostProcess:
         prediction_df = self.get_prediction_dataframe(
             post_processing=post_processing_fn,
             threshold=threshold,
-            binarization_type="class_threshold",
+            binarization_type=binarization_type,
         )
 
         # Compute evaluation metrics
@@ -454,14 +454,16 @@ class PostProcess:
         # Compute psds scores with multiple thresholds (more accurate). n_thresholds could be increased.
         n_thresholds = 50
         out_nb_frames_1s = self.sample_rate / self.hop_size / self.pooling_time_ratio
-        median_window = max(int(0.45 * out_nb_frames_1s), 1)
+        # median_window = max(int(0.45 * out_nb_frames_1s), 1)
+        post_processing_fn = [functools.partial(median_filt_1d, filt_span=3)]
+
         # Example of 5 thresholds: 0.1, 0.3, 0.5, 0.7, 0.9
         list_thresholds = np.arange(1 / (n_thresholds * 2), 1, 1 / n_thresholds)
 
         prediction_dfs = {}
         for threshold in list_thresholds:
             prediction_dfs[threshold] = self.get_prediction_dataframe(
-                post_processing=None,
+                post_processing=post_processing_fn,
                 threshold=threshold,
                 binarization_type="global_threshold",
             )

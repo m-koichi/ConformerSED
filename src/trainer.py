@@ -3,6 +3,7 @@ import glob
 import logging
 import math
 import os
+import pickle
 import random
 import shutil
 from pathlib import Path
@@ -429,7 +430,8 @@ class MeanTeacherTrainer(object):
         post_process = PostProcess(self.model, self.valid_loader, Path(self.exp_name), self.options)
         post_process.compute_psds()
         pp_params = post_process.tune_all()
-        np.savez(Path(self.exp_name) / "post_process_params.npz", **pp_params)
+        with open(self.exp_name / "post_process_params.pickle", "wb") as f:
+            pickle.dump(pp_params, f)
 
     def save(self, filename, ema_filename):
         torch.save(self.model.state_dict(), str(filename))
