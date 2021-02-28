@@ -87,7 +87,10 @@ def parse_args(args):
         help="feature extraction config to use training in yaml format",
     )
     parser.add_argument(
-        "--trainer-config", default="./config/trainer_config.yaml", type=str, help="trainer config in yaml format",
+        "--trainer-config",
+        default="./config/trainer_config.yaml",
+        type=str,
+        help="trainer config in yaml format",
     )
     parser.add_argument("--debugmode", default=True, action="store_true", help="Debugmode")
     parser.add_argument("--verbose", "-V", default=0, type=int, help="Verbose option")
@@ -155,7 +158,9 @@ def main(args):
 
     # collect dataset stats
     if Path(f"exp/{cfg['exp_name']}/stats.npz").exists():
-        stats = np.load(f"exp/{cfg['exp_name']}/stats.npz",)
+        stats = np.load(
+            f"exp/{cfg['exp_name']}/stats.npz",
+        )
     else:
         kwargs_dataset = {
             "encode_function": encode_function,
@@ -167,7 +172,8 @@ def main(args):
             train_unlabel_df, data_dir=(feat_dir / "train/unlabel_in_domain"), **kwargs_dataset
         )
         stats = collect_stats(
-            [train_synth_dataset, train_weak_dataset, train_unlabel_dataset], f"exp/{cfg['exp_name']}/stats.npz",
+            [train_synth_dataset, train_weak_dataset, train_unlabel_dataset],
+            f"exp/{cfg['exp_name']}/stats.npz",
         )
 
     norm_dict_params = {
@@ -178,10 +184,18 @@ def main(args):
 
     nb_frames = math.ceil(cfg["max_len_seconds"] * cfg["sample_rate"] / cfg["hop_size"])
     train_transforms = get_transforms(
-        cfg["data_aug"], nb_frames=nb_frames, norm_dict_params=norm_dict_params, training=True, prob=cfg["apply_prob"],
+        cfg["data_aug"],
+        nb_frames=nb_frames,
+        norm_dict_params=norm_dict_params,
+        training=True,
+        prob=cfg["apply_prob"],
     )
     test_transforms = get_transforms(
-        cfg["data_aug"], nb_frames=nb_frames, norm_dict_params=norm_dict_params, training=False, prob=0.0,
+        cfg["data_aug"],
+        nb_frames=nb_frames,
+        norm_dict_params=norm_dict_params,
+        training=False,
+        prob=0.0,
     )
 
     kwargs_dataset = {
@@ -250,17 +264,23 @@ def main(args):
         pin_memory=True,
     )
     valid_loader = DataLoader(
-        valid_dataset, batch_size=cfg["batch_size"], shuffle=False, num_workers=cfg["num_workers"], pin_memory=True,
+        valid_dataset,
+        batch_size=cfg["batch_size"],
+        shuffle=False,
+        num_workers=cfg["num_workers"],
+        pin_memory=True,
     )
 
     # logging info
     if args.verbose > 0:
         logging.basicConfig(
-            level=logging.INFO, format="%(asctime)s (%(module)s:%(lineno)d) %(levelname)s: %(message)s",
+            level=logging.INFO,
+            format="%(asctime)s (%(module)s:%(lineno)d) %(levelname)s: %(message)s",
         )
     else:
         logging.basicConfig(
-            level=logging.WARN, format="%(asctime)s (%(module)s:%(lineno)d) %(levelname)s: %(message)s",
+            level=logging.WARN,
+            format="%(asctime)s (%(module)s:%(lineno)d) %(levelname)s: %(message)s",
         )
         logging.warning("Skip DEBUG/INFO messages")
 
@@ -315,6 +335,7 @@ def main(args):
         optimizer=optimizer,
         scheduler=scheduler,
         exp_name=exp_name,
+        resume=cfg["resume"],
         trainer_options=trainer_options,
     )
 

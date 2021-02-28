@@ -1,6 +1,7 @@
 # experiment
 wandb_project: dcase20t4
 exp_name: conformer_sed
+resume:
 
 # dataset
 synth_meta: ./data/metadata/train/synthetic20.tsv
@@ -76,4 +77,4 @@ trainer_options:
   binarization_type: "global_threshold"
   threshold: 0.5
   early_stopping: True
-  patience: 5
+  patience: 10

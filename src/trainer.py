@@ -100,11 +100,12 @@ class MeanTeacherTrainer(object):
         self.options = trainer_options
 
         if pretrained is not None:
-            print(f"load pretrained model: {pretrained}")
+            logging.info(f"load pretrained model: {pretrained}")
             self.load(pretrained, pretrained)
 
         if resume is not None:
-            self.resume(resume)
+            logging.info(f"Resuming from {resume}")
+            self.resume(exp_name / "model" / resume)
 
         self.exp_name = exp_name
 
