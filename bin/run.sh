@@ -6,17 +6,16 @@
 stage=1         # start from 0 if you need to start from data preparation
 stop_stage=4
 nj=24
-
+ 
 
 if [ ${stage} -le 1 ] && [ ${stop_stage} -ge 1 ]; then
     echo "stage 1: Data Preparation"
-    if [! -d dcase20_task4]; then
+    if [ ! -d dcase20_task4 ]; then
         git clone git@github.com:turpaultn/dcase20_task4.git
         cd dcase20_task4/scripts
-        ./1_download_material_ss.sh
+        ./1_download_data.sh
         ./2_generate_data_from_jams.sh
         # [optional] generate augmented samples
-        # ./2_generate_data_from_scratch.sh
         # ./3_reverberate_data.sh
         # ./4_separate_mixture.sh
         cd ..
