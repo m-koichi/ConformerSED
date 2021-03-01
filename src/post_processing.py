@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 import torch
 from dcase_util.data import ProbabilityEncoder
+from genericpath import exists
 from scipy.signal import medfilt
 from torch.utils.data import DataLoader, Dataset
 
@@ -376,75 +377,8 @@ class PostProcess:
         macro_f1_event = events_metric.results_class_wise_average_metrics()["f_measure"]["f_measure"]
         macro_f1_segment = segments_metric.results_class_wise_average_metrics()["f_measure"]["f_measure"]
 
-        # psds_results(predictions, validation_df, durations_validation)
-
-        logging.info("Eb\tSb\tFb\tF_pre\tF_rec\tweak-f1")
-        logging.info(f"Eb: {macro_f1_event}")
-        logging.info(f"Sb: {macro_f1_segment}")
-        # logging.info(f'Fb:', macro_f1)
-
-    def get_predictions(self, thresholds, post_processing=None, save_predictions=None):
-        # Init a dataframe per threshold
-        prediction_dfs = {}
-        for threshold in thresholds:
-            prediction_dfs[threshold] = pd.DataFrame()
-
-        # Get predictions
-        for batch_idx, data in enumerate(self.data_loader):
-            output = {}
-            output["strong"] = data["pred_strong"].cpu().data.numpy()
-
-            # Post processing and put predictions in a dataframe
-            for j, (pred, data_id) in enumerate(zip(output["strong"], data["data_id"])):
-                for threshold in thresholds:
-                    breakpoint()
-                    pred = ProbabilityEncoder().binarization(
-                        pred, binarization_type="global_threshold", threshold=threshold
-                    )
-                    # Apply post processing if exists
-                    if post_processing is not None:
-                        for post_process_fn in post_processing:
-                            pred = post_process_fn(pred)
-                    # pred_strong_m = scipy.ndimage.filters.median_filter(pred_strong_bin, (median_window, 1))
-                    pred = self.decoder(pred)
-                    pred = pd.DataFrame(pred, columns=["event_label", "onset", "offset"])
-
-                    # Put them in seconds
-                    pred.loc[:, ["onset", "offset"]] *= self.pooling_time_ratio / (self.sample_rate / self.hop_size)
-                    pred.loc[:, ["onset", "offset"]] = pred[["onset", "offset"]].clip(0, self.options.max_len_seconds)
-
-                    pred["filename"] = data_id
-                    prediction_dfs[threshold] = prediction_dfs[threshold].append(pred, ignore_index=True)
-
-        # # Save predictions
-        # if save_predictions is not None:
-        #     if isinstance(save_predictions, str):
-        #         if len(thresholds) == 1:
-        #             save_predictions = [save_predictions]
-        #         else:
-        #             base, ext = osp.splitext(save_predictions)
-        #             save_predictions = [osp.join(base, f"{threshold:.3f}{ext}") for threshold in thresholds]
-        #     else:
-        #         assert len(save_predictions) == len(thresholds), \
-        #             f"There should be a prediction file per threshold: len predictions: {len(save_predictions)}\n" \
-        #             f"len thresholds: {len(thresholds)}"
-        #         save_predictions = save_predictions
-
-        #     for ind, threshold in enumerate(thresholds):
-        #         dir_to_create = osp.dirname(save_predictions[ind])
-        #         if dir_to_create != "":
-        #             os.makedirs(dir_to_create, exist_ok=True)
-        #             if ind % 10 == 0:
-        #                 print(f"Saving predictions at: {save_predictions[ind]}. {ind + 1} / {len(thresholds)}")
-        #             prediction_dfs[threshold].to_csv(save_predictions[ind], index=False, sep="\t", float_format="%.3f")
-
-        list_predictions = []
-        for key in prediction_dfs:
-            list_predictions.append(prediction_dfs[key])
-
-        if len(list_predictions) == 1:
-            list_predictions = list_predictions[0]
-        return list_predictions
+        logging.info(f"Event-based macro F1: {macro_f1_event}")
+        logging.info(f"Segment-based macro F1: {macro_f1_segment}")
 
     def compute_psds(self):
         logging.info("Compute psds scores")
@@ -467,14 +401,24 @@ class PostProcess:
                 threshold=threshold,
                 binarization_type="global_threshold",
             )
-        pred_ss_thresh = []
+        pred_thresh = []
         for key in prediction_dfs:
-            pred_ss_thresh.append(prediction_dfs[key])
+            pred_thresh.append(prediction_dfs[key])
 
-        if len(pred_ss_thresh) == 1:
-            pred_ss_thresh = pred_ss_thresh[0]
+        if len(pred_thresh) == 1:
+            pred_thresh = pred_thresh[0]
 
-        psds = compute_psds_from_operating_points(pred_ss_thresh, self.validation_df, self.durations_validation)
+        # save predictions
+        (self.output_dir / "predictions_thresh").mkdir(exist_ok=True)
+        for th, pred_df in zip(list_thresholds, pred_thresh):
+            pred_df.to_csv(
+                self.output_dir / "predictions_thresh" / f"{th}.csv",
+                index=False,
+                sep="\t",
+                float_format="%.3f",
+            )
+
+        psds = compute_psds_from_operating_points(pred_thresh, self.validation_df, self.durations_validation)
         psds_score(psds, filename_roc_curves=self.output_dir / "psds_roc.png")
 
     def tune_all(

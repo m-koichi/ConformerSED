@@ -386,6 +386,14 @@ class MeanTeacherTrainer(object):
                 prediction_df = prediction_df.append(pred)
 
         else:
+            # save predictions
+            prediction_df.to_csv(
+                self.exp_name / "predictions" / f"{self.forward_count}th_iterations.csv",
+                index=False,
+                sep="\t",
+                float_format="%.3f",
+            )
+
             # Compute evaluation metrics
             events_metric, segments_metric, psds_m_f1 = compute_metrics(
                 prediction_df,
@@ -428,10 +436,10 @@ class MeanTeacherTrainer(object):
     @torch.no_grad()
     def optimize_post_processing(self):
         post_process = PostProcess(self.model, self.valid_loader, Path(self.exp_name), self.options)
-        post_process.compute_psds()
         pp_params = post_process.tune_all()
         with open(self.exp_name / "post_process_params.pickle", "wb") as f:
             pickle.dump(pp_params, f)
+        post_process.compute_psds()
 
     def save(self, filename, ema_filename):
         torch.save(self.model.state_dict(), str(filename))
