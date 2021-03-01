@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # encoding: utf-8
 
-# Copyright 2019 Koichi Miyazaki (Nagoya University)
+# Copyright 2020 Koichi Miyazaki (Nagoya University)
 #  Apache 2.0  (http://www.apache.org/licenses/LICENSE-2.0)
 
 import argparse
@@ -61,16 +61,7 @@ def main(args):
     exp_name = Path(f"./exp/{args.exp_name}")
     assert exp_name.exists()
 
-    model_config = exp_name / "model_config.yaml"
-    trainer_config = exp_name / "trainer_config.yaml"
-
     # load config
-    # with open(model_config) as model_config, open(trainer_config) as trainer_config:
-    #     config = {
-    #         "model": yaml.safe_load(model_config),
-    #         "trainer": yaml.safe_load(trainer_config),
-    #     }
-    # cfg = config["trainer"]
     with open(exp_name / "config.yaml") as f:
         cfg = yaml.safe_load(f)
     test_df = pd.read_csv(args.test_meta, header=0, sep="\t")
@@ -84,7 +75,7 @@ def main(args):
     encode_function = many_hot_encoder.encode_strong_df
 
     feat_dir = Path(
-        f"data/feat/sr{cfg['sample_rate']}_n_mels{cfg['feature']['mel_spec']['n_mels']}_"
+        f"data/feat/sr{cfg['feature']['sample_rate']}_n_mels{cfg['feature']['mel_spec']['n_mels']}_"
         + f"n_fft{cfg['feature']['mel_spec']['n_fft']}_hop_size{cfg['feature']['mel_spec']['hop_size']}"
     )
     stats = np.load(
@@ -142,7 +133,7 @@ def main(args):
 
     seed_everything(cfg["seed"])
 
-    model = SEDModel(n_class=10, cnn_kwargs=config["model"]["cnn"], encoder_kwargs=config["model"]["encoder"])
+    model = SEDModel(n_class=10, cnn_kwargs=cfg["model"]["cnn"], encoder_kwargs=cfg["model"]["encoder"])
 
     checkpoint = torch.load(exp_name / "model" / "model_best_score.pth")
     model.load_state_dict(checkpoint["state_dict"])
@@ -152,8 +143,8 @@ def main(args):
         valid_meta=args.test_meta,
         valid_audio_dir=args.test_audio_dir,
         max_len_seconds=cfg["max_len_seconds"],
-        sample_rate=cfg["sample_rate"],
-        hop_size=cfg["hop_size"],
+        sample_rate=cfg["feature"]["sample_rate"],
+        hop_size=cfg["feature"]["mel_spec"]["hop_size"],
         pooling_time_ratio=cfg["pooling_time_ratio"],
     )
     output_dir = exp_name / "test"

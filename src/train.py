@@ -76,22 +76,6 @@ def seed_everything(seed):
 
 def parse_args(args):
     parser = argparse.ArgumentParser()
-
-    parser.add_argument(
-        "--model-config", default="./config/model_config.yaml", type=str, help="training model config in yaml format"
-    )
-    parser.add_argument(
-        "--feature-config",
-        default="./config/feature_config.yaml",
-        type=str,
-        help="feature extraction config to use training in yaml format",
-    )
-    parser.add_argument(
-        "--trainer-config",
-        default="./config/trainer_config.yaml",
-        type=str,
-        help="trainer config in yaml format",
-    )
     parser.add_argument("--config", default="./config/default_config.yaml", type=str, help="config file in yaml format")
     parser.add_argument("--debugmode", default=True, action="store_true", help="Debugmode")
     parser.add_argument("--verbose", "-V", default=0, type=int, help="Verbose option")
@@ -133,9 +117,6 @@ def main(args):
     Path(exp_name / "score").mkdir(exist_ok=True)
 
     # save config
-    # shutil.copy(args.model_config, (exp_name / "model_config.yaml"))
-    # shutil.copy(args.feature_config, (exp_name / "feature_config.yaml"))
-    # shutil.copy(args.trainer_config, (exp_name / "trainer_config.yaml"))
     shutil.copy(args.config, (exp_name / "config.yaml"))
 
     train_synth_df = pd.read_csv(cfg["synth_meta"], header=0, sep="\t")
