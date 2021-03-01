@@ -463,12 +463,14 @@ class MeanTeacherTrainer(object):
             best_path = os.path.join(os.path.dirname(filename), "model_best_score.pth")
             shutil.copyfile(filename, best_path)
 
-    def load(self, filename, ema_filename):
-        self.model.load_state_dict(torch.load(str(filename)), strict=False)
-        self.ema_model.load_state_dict(torch.load(str(ema_filename)), strict=False)
+    def load(self, filename):
+        logging.info(f"=> loading pretrained '{filename}'")
+        checkpoint = torch.load(str(filename))
+        self.model.load_state_dict(checkpoint["state_dict"], strict=False)
+        self.ema_model.load_state_dict(checkpoint["state_dict_ema"], strict=False)
 
     def resume(self, filename):
-        print(f"=> loading checkpoint '{filename}'")
+        logging.info(f"=> loading checkpoint '{filename}'")
         checkpoint = torch.load(str(filename))
         self.forward_count = checkpoint["iteration"]
         self.model.load_state_dict(checkpoint["state_dict"], strict=False)
@@ -476,7 +478,7 @@ class MeanTeacherTrainer(object):
         self.best_score = checkpoint["best_score"]
         self.optimizer.load_state_dict(checkpoint["optimizer"])
         self.scheduler.load_state_dict(checkpoint["scheduler"])
-        print(f"=> loaded checkpoint {self.forward_count} iterations")
+        logging.info(f"=> loaded checkpoint {self.forward_count} iterations")
 
     def average_checkpoint(self, snapshots_dir, out="average.pth", num=10, last_from_best=True):
         snapshots = glob.glob(f"{snapshots_dir}/*.pth")

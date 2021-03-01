@@ -87,15 +87,6 @@ def main(args):
     args = parse_args(args)
 
     # load config
-    with open(args.model_config) as model_config, open(args.feature_config) as feature_config, open(
-        args.trainer_config
-    ) as trainer_config:
-        config = {
-            "model": yaml.safe_load(model_config),
-            "feature": yaml.safe_load(feature_config),
-            "trainer": yaml.safe_load(trainer_config),
-        }
-    cfg = config["trainer"]
     with open(args.config) as f:
         cfg = yaml.safe_load(f)
 
@@ -289,12 +280,6 @@ def main(args):
     logging.info(f"model parameter: {sum(p.numel() for p in model.parameters() if p.requires_grad)}")
     wandb.watch(model)
 
-    # if args.pretrained is not None:
-    #     pretrained = Path("exp") / args.pretrained / "model" / "best_iteration.pth"
-    #     # pretrained = Path("exp") / args.pretrained / "model" / "average.pth"
-    # else:
-    #     pretrained = None
-
     trainer_options = MeanTeacherTrainerOptions(**cfg["trainer_options"])
     trainer_options._set_validation_options(
         valid_meta=cfg["valid_meta"],
@@ -326,6 +311,7 @@ def main(args):
         optimizer=optimizer,
         scheduler=scheduler,
         exp_name=exp_name,
+        pretrained=cfg["pretrained"],
         resume=cfg["resume"],
         trainer_options=trainer_options,
     )

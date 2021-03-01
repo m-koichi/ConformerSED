@@ -41,6 +41,7 @@ model:
 wandb_project: dcase20t4
 exp_name: conformer_sed
 resume:
+pretrained:
 
 # dataset
 synth_meta: ./data/metadata/train/synthetic20.tsv
