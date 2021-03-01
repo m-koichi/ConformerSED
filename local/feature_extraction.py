@@ -21,13 +21,13 @@ def feature_extraction(cfg, src, dest):
     np.save(dest, mel_spec)
 
 
-def calculate_mel_spec(x, fs, n_mels, n_fft, n_shift, fmin=None, fmax=None):
+def calculate_mel_spec(x, fs, n_mels, n_fft, hop_size, fmin=None, fmax=None):
     fmin = 0 if fmin is None else fmin
     fmax = fs / 2 if fmax is None else fmax
     # Compute spectrogram
     ham_win = np.hamming(n_fft)
 
-    spec = librosa.stft(x, n_fft=n_fft, hop_length=n_shift, window=ham_win, center=True, pad_mode="reflect")
+    spec = librosa.stft(x, n_fft=n_fft, hop_length=hop_size, window=ham_win, center=True, pad_mode="reflect")
 
     mel_spec = librosa.feature.melspectrogram(
         S=np.abs(spec),  # amplitude, for energy: spec**2 but don't forget to change amplitude_to_db.
@@ -53,7 +53,7 @@ def main():
     args = parser.parse_args()
 
     with open(args.config, "r") as f:
-        cfg = yaml.safe_load(f)
+        cfg = yaml.safe_load(f)["feature"]
 
     wav_dir = Path(f"./data/wav/sr{cfg['sample_rate']}")
     if not wav_dir.exists():
@@ -70,7 +70,7 @@ def main():
 
     feat_dir = Path(
         f"./data/feat/sr{cfg['sample_rate']}"
-        + f"_n_mels{cfg['mel_spec']['n_mels']}_n_fft{cfg['mel_spec']['n_fft']}_n_shift{cfg['mel_spec']['n_shift']}"
+        + f"_n_mels{cfg['mel_spec']['n_mels']}_n_fft{cfg['mel_spec']['n_fft']}_hop_size{cfg['mel_spec']['hop_size']}"
     )
     if not feat_dir.exists():
         feat_dir.mkdir(parents=True)

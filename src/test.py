@@ -65,22 +65,27 @@ def main(args):
     trainer_config = exp_name / "trainer_config.yaml"
 
     # load config
-    with open(model_config) as model_config, open(trainer_config) as trainer_config:
-        config = {
-            "model": yaml.safe_load(model_config),
-            "trainer": yaml.safe_load(trainer_config),
-        }
-    cfg = config["trainer"]
+    # with open(model_config) as model_config, open(trainer_config) as trainer_config:
+    #     config = {
+    #         "model": yaml.safe_load(model_config),
+    #         "trainer": yaml.safe_load(trainer_config),
+    #     }
+    # cfg = config["trainer"]
+    with open(exp_name / "config.yaml") as f:
+        cfg = yaml.safe_load(f)
     test_df = pd.read_csv(args.test_meta, header=0, sep="\t")
 
-    n_frames = math.ceil(cfg["max_len_seconds"] * cfg["sample_rate"] / cfg["hop_size"])
+    n_frames = math.ceil(
+        cfg["max_len_seconds"] * cfg["feature"]["sample_rate"] / cfg["feature"]["mel_spec"]["hop_size"]
+    )
     # Note: assume that the same class used in the training is included at least once.
     classes = test_df.event_label.dropna().sort_values().unique()
     many_hot_encoder = ManyHotEncoder(labels=classes, n_frames=n_frames)
     encode_function = many_hot_encoder.encode_strong_df
 
     feat_dir = Path(
-        f"data/feat/sr{cfg['sample_rate']}_n_mels{cfg['n_mels']}_n_fft{cfg['n_fft']}_n_shift{cfg['hop_size']}"
+        f"data/feat/sr{cfg['sample_rate']}_n_mels{cfg['feature']['mel_spec']['n_mels']}_"
+        + f"n_fft{cfg['feature']['mel_spec']['n_fft']}_hop_size{cfg['feature']['mel_spec']['hop_size']}"
     )
     stats = np.load(
         f"exp/{cfg['exp_name']}/stats.npz",
@@ -92,10 +97,9 @@ def main(args):
         "mode": cfg["norm_mode"],
     }
 
-    nb_frames = math.ceil(cfg["max_len_seconds"] * cfg["sample_rate"] / cfg["hop_size"])
     test_transforms = get_transforms(
         cfg["data_aug"],
-        nb_frames=nb_frames,
+        nb_frames=n_frames,
         norm_dict_params=norm_dict_params,
         training=False,
         prob=0.0,

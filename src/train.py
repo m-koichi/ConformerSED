@@ -92,6 +92,7 @@ def parse_args(args):
         type=str,
         help="trainer config in yaml format",
     )
+    parser.add_argument("--config", default="./config/default_config.yaml", type=str, help="config file in yaml format")
     parser.add_argument("--debugmode", default=True, action="store_true", help="Debugmode")
     parser.add_argument("--verbose", "-V", default=0, type=int, help="Verbose option")
 
@@ -111,8 +112,10 @@ def main(args):
             "trainer": yaml.safe_load(trainer_config),
         }
     cfg = config["trainer"]
+    with open(args.config) as f:
+        cfg = yaml.safe_load(f)
 
-    wandb.init(project=cfg["wandb_project"], config=config, name=cfg["exp_name"])
+    wandb.init(project=cfg["wandb_project"], config=cfg, name=cfg["exp_name"])
 
     exp_name = Path(f"exp/{cfg['exp_name']}")
     # if debug is true, enable to overwrite experiment
@@ -130,30 +133,38 @@ def main(args):
     Path(exp_name / "score").mkdir(exist_ok=True)
 
     # save config
-    shutil.copy(args.model_config, (exp_name / "model_config.yaml"))
-    shutil.copy(args.feature_config, (exp_name / "feature_config.yaml"))
-    shutil.copy(args.trainer_config, (exp_name / "trainer_config.yaml"))
+    # shutil.copy(args.model_config, (exp_name / "model_config.yaml"))
+    # shutil.copy(args.feature_config, (exp_name / "feature_config.yaml"))
+    # shutil.copy(args.trainer_config, (exp_name / "trainer_config.yaml"))
+    shutil.copy(args.config, (exp_name / "config.yaml"))
 
     train_synth_df = pd.read_csv(cfg["synth_meta"], header=0, sep="\t")
     train_weak_df = pd.read_csv(cfg["weak_meta"], header=0, sep="\t")
     train_unlabel_df = pd.read_csv(cfg["unlabel_meta"], header=0, sep="\t")
     valid_df = pd.read_csv(cfg["valid_meta"], header=0, sep="\t")
 
-    n_frames = math.ceil(cfg["max_len_seconds"] * cfg["sample_rate"] / cfg["hop_size"])
+    n_frames = math.ceil(
+        cfg["max_len_seconds"] * cfg["feature"]["sample_rate"] / cfg["feature"]["mel_spec"]["hop_size"]
+    )
     classes = valid_df.event_label.dropna().sort_values().unique()
     many_hot_encoder = ManyHotEncoder(labels=classes, n_frames=n_frames)
     encode_function = many_hot_encoder.encode_strong_df
     # Put train_synth in frames so many_hot_encoder can work.
     #  Not doing it for valid, because not using labels (when prediction) and event based metric expect sec.
-    train_synth_df.onset = train_synth_df.onset * cfg["sample_rate"] // cfg["hop_size"]
-    train_synth_df.offset = train_synth_df.offset * cfg["sample_rate"] // cfg["hop_size"]
+    train_synth_df.onset = (
+        train_synth_df.onset * cfg["feature"]["sample_rate"] // cfg["feature"]["mel_spec"]["hop_size"]
+    )
+    train_synth_df.offset = (
+        train_synth_df.offset * cfg["feature"]["sample_rate"] // cfg["feature"]["mel_spec"]["hop_size"]
+    )
 
     # For calculate validation loss. Note that do not use for calculate evaluation metrics
-    valid_df.onset = valid_df.onset * cfg["sample_rate"] // cfg["hop_size"]
-    valid_df.offset = valid_df.offset * cfg["sample_rate"] // cfg["hop_size"]
+    valid_df.onset = valid_df.onset * cfg["feature"]["sample_rate"] // cfg["feature"]["mel_spec"]["hop_size"]
+    valid_df.offset = valid_df.offset * cfg["feature"]["sample_rate"] // cfg["feature"]["mel_spec"]["hop_size"]
 
     feat_dir = Path(
-        f"data/feat/sr{cfg['sample_rate']}_n_mels{cfg['n_mels']}_n_fft{cfg['n_fft']}_n_shift{cfg['hop_size']}"
+        f"data/feat/sr{cfg['feature']['sample_rate']}_n_mels{cfg['feature']['mel_spec']['n_mels']}_"
+        + f"n_fft{cfg['feature']['mel_spec']['n_fft']}_hop_size{cfg['feature']['mel_spec']['hop_size']}"
     )
 
     # collect dataset stats
@@ -182,17 +193,16 @@ def main(args):
         "mode": cfg["norm_mode"],
     }
 
-    nb_frames = math.ceil(cfg["max_len_seconds"] * cfg["sample_rate"] / cfg["hop_size"])
     train_transforms = get_transforms(
         cfg["data_aug"],
-        nb_frames=nb_frames,
+        nb_frames=n_frames,
         norm_dict_params=norm_dict_params,
         training=True,
         prob=cfg["apply_prob"],
     )
     test_transforms = get_transforms(
         cfg["data_aug"],
-        nb_frames=nb_frames,
+        nb_frames=n_frames,
         norm_dict_params=norm_dict_params,
         training=False,
         prob=0.0,
@@ -289,8 +299,8 @@ def main(args):
 
     seed_everything(cfg["seed"])
 
-    model = SEDModel(n_class=10, cnn_kwargs=config["model"]["cnn"], encoder_kwargs=config["model"]["encoder"])
-    ema_model = SEDModel(n_class=10, cnn_kwargs=config["model"]["cnn"], encoder_kwargs=config["model"]["encoder"])
+    model = SEDModel(n_class=len(classes), cnn_kwargs=cfg["model"]["cnn"], encoder_kwargs=cfg["model"]["encoder"])
+    ema_model = SEDModel(n_class=len(classes), cnn_kwargs=cfg["model"]["cnn"], encoder_kwargs=cfg["model"]["encoder"])
 
     # Show network architecture details
     logging.info(model)
@@ -309,8 +319,8 @@ def main(args):
         valid_meta=cfg["valid_meta"],
         valid_audio_dir=cfg["valid_audio_dir"],
         max_len_seconds=cfg["max_len_seconds"],
-        sample_rate=cfg["sample_rate"],
-        hop_size=cfg["hop_size"],
+        sample_rate=cfg["feature"]["sample_rate"],
+        hop_size=cfg["feature"]["mel_spec"]["hop_size"],
         pooling_time_ratio=cfg["pooling_time_ratio"],
     )
 

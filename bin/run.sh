@@ -6,6 +6,7 @@
 stage=1         # start from 0 if you need to start from data preparation
 stop_stage=4
 nj=24
+config=./config/default_config.yaml
  
 
 if [ ${stage} -le 1 ] && [ ${stop_stage} -ge 1 ]; then
@@ -29,14 +30,14 @@ fi
 
 if [ ${stage} -le 2 ] && [ ${stop_stage} -ge 2 ]; then
     echo "stage 2: Feature Generation"
-    python local/feature_extraction.py --config ./config/feature_config.yaml --nj ${nj}
+    python local/feature_extraction.py --config ${config} --nj ${nj}
 fi
 
 if [ ${stage} -le 3 ] && [ ${stop_stage} -ge 3 ]; then
     export CUDA_DEVICE_ORDER=PCI_BUS_ID
     echo "stage 3: Network Training"
     echo "`date`: [Start] model training"
-    python -u src/train.py
+    python -u src/train.py --config ${config}
     echo "`date`: [Done] model training"
 
 fi
